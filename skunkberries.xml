@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<cmud>
+  <class name="skunk berries">
+    <alias name="sk">
+      <value>// eat a skunk berry if possible
+// Initialize the current time so we know how much time is left
+// until the next time we can eat a berry
+$currentTime = @parseTime(%time("yy/mm/dd hh:nn:ss"))
+$elapsedTime = $currentTime - @lastberry
+$timeRemaining = 300 - $elapsedTime
+$recentSkunk = 60 - $elapsedTime
+
+// If it hasn't been at least a minute since the last skunk berry
+// then we don't do anything else
+#if ($recentSkunk &gt;= 0) {
+  #show You ate a skunk berry too recently.
+  #show %ansi(bold,yellow)You can eat another skunk berry in $recentSkunk seconds.
+  #exit
+}
+
+// Send the command to eat the berries, unless
+// we already have eaten two, then we stop ourselves
+#if (!@skunks) {skunks = 0}
+#if (!@lastberry || $elapsedTime &gt;= 300) {
+  lastberry = $currentTime
+}
+#if (@skunks &lt; 2) {
+  open qarraba
+  get skunk berries from qarraba
+  eat skunk berries
+  lastberry = 0
+  ha
+}
+{
+  #show You've already ingested @skunks skunk berries.
+  #show You don't want to catch fire, do you?!
+  #show %ansi(bold,yellow)You can eat another skunk berry in $timeRemaining seconds.
+}</value>
+    </alias>
+    <alias name="sbreset">
+      <value>// Should be called by trigger at login
+skunks = 0
+// Time differences are calculated in seconds rather than ms. Skunk berries last 5 minutes in system
+lastberry = 5*60
+#show Skunk berries counter RESET</value>
+    </alias>
+    <func name="parseTime">
+      <value>// @parsetime(%time("yy/mm/dd hh:nn:ss")) will return the number of seconds since midnight Jan 1, 2000.
+#local $timestring $curtime $x $year $month $day $hour $minute $second $seconds2000
+$timestring = %1
+$x = %match($timestring, "(%d)/(%d)/(%d) (%d):(%d):(%d)", $year, $month, $day, $hour, $minute, $second)
+$seconds2000 = $second + ($minute * 60) + ($hour * 3600) + ($day * 86400) + ($year * 31536000)
+#switch ($month = 1) {}
+  ($month = 2) {$seconds2000 = $seconds2000 + (31 * 86400)}
+  ($month = 3) {$seconds2000 = $seconds2000 + (59 * 86400)}
+  ($month = 4) {$seconds2000 = $seconds2000 + (90 * 86400)}
+  ($month = 5) {$seconds2000 = $seconds2000 + (120 * 86400)}
+  ($month = 6) {$seconds2000 = $seconds2000 + (151 * 86400)}
+  ($month = 7) {$seconds2000 = $seconds2000 + (181 * 86400)}
+  ($month = 8) {$seconds2000 = $seconds2000 + (212 * 86400)}
+  ($month = 9) {$seconds2000 = $seconds2000 + (243 * 86400)}
+  ($month = 10) {$seconds2000 = $seconds2000 + (273 * 86400)}
+  ($month = 11) {$seconds2000 = $seconds2000 + (304 * 86400)}
+  ($month = 12) {$seconds2000 = $seconds2000 + (335 * 86400)}
+#if (%mod($year, 4) = 0 and $month &gt; 2) {$seconds2000 = $seconds2000 + 86400}
+#return $seconds2000</value>
+      <arglist>timestamp</arglist>
+    </func>
+    <trigger priority="29310">
+      <pattern>As you eat the purple berries, a terrible bitter taste fills your mouth</pattern>
+      <value>// This trigger will keep a counter of the number of skunk berries
+// that you have eaten as well as the amount of time since
+// you last ate a handful of skunk berries. Feel free to mess
+// around with or eliminate the gwc.output.append lines if you
+// don't like them.
+
+// We start with initializing the variable that contains the number
+// of skunk berries that we have eaten. This is really only needed
+// the first time that the script runs.
+#if (!@skunks) { skunks = 0 }
+
+// Capture the time that this script runs, when you ate the berries
+lastberry = @parseTime(%time("yy/mm/dd hh:nn:ss"))
+#show @lastberry
+
+// Increment the number of berries that we've eaten
+skunks = @skunks+1
+
+// Display how many have been eaten in a purple colour
+#if (@skunks == 1) {
+  #show %ansi(bold,magenta)You have ingested 1 handful of skunk berries.
+}
+{
+  #show %ansi(bold,magenta)You have ingested @skunks handfuls of skunk berries.
+}
+
+// Display number of skunks in system after it fades
+#wait 300001
+skunks = @skunks-1
+#show %ansi(bold,magenta)You have ingested @skunks skunk berries.%ansi(reset)</value>
+    </trigger>
+  </class>
+</cmud>
