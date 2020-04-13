@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<cmud>
+  <class name="Communication">
+    <trigger type="GMCP" priority="24050">
+      <pattern>Char.Login</pattern>
+      <value>// Disable NPC chatter in Comm.Channel
+// Web client example: mud.Process.outgoing_gmcp("core.options", {"npc_comms" : "off"});
+// Mudlet example: sendGMCP([[Core.Options {"npc_comms" : "off" }]])
+// Zugg example: MUST USE a variable, cannot create db record inline
+
+$option.npc_comms = "off"
+#SENDGMCP Core.Options $option</value>
+    </trigger>
+    <trigger type="GMCP" priority="24080">
+      <pattern>Comm.Channel</pattern>
+      <value>#WINDOW "Communication" %gmcp.comm.channel.message</value>
+    </trigger>
+    <event event="onDisconnect" priority="24110">
+      <value>#echo Disconnected at %time("h:nn:ss am/pm")
+#window "Communication" Disconnected at %time("h:nn:ss am/pm")</value>
+    </event>
+    <event event="onConnect" priority="24120">
+      <value>#window "Communication" New Session Connected at %time("h:nn:ss am/pm")
+#echo New Session Connected at %time("h:nn:ss am/pm")</value>
+    </event>
+    <trigger priority="1930">
+      <pattern>An apparition of (%w) appears before you</pattern>
+      <value>#COLOR "bold,yellow"
+#BEEP</value>
+    </trigger>
+  </class>
+</cmud>
