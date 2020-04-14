@@ -1,4 +1,4 @@
-// Simple String List to Gag any unwanted text in game
+// Simple String List to remove any unwanted text in-game
 
 <class name="Gags" id="17">
   <var name="GagList" type="StringList" id="18">
