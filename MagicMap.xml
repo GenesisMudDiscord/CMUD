@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<cmud>
+  <class name="Magic Map">
+    <trigger name="get_telnet_map" type="Telnet" param="201" priority="24310" regex="true">
+      <pattern>\"map\": (.*)</pattern>
+      <value>// FYI: Use script debugger to view entire telnet 201 payload, regex narrows it down to just the map data
+// Must use telnet trigger to get raw map data, because CMUD json processing is applied prior to storing map in %gmcp.room.map.map, so all newlines are stripped and can neither be printed nor split into rows
+
+// Trim extra " }" from end of telnet payload
+orig_map = %string(%leftback(%1,2))
+
+// Can display map right now, but it's not useful to do so because it would not include current location. For that, a Room.Info gmcp event is needed to advertise x and y positions. But FYI to display map from telnet data, carriage return must be added to newline, as that is what CMUD requires to recognize line delimiters:
+//:"Magic Map":#CLR
+//#window "Magic Map" %json(%replace(@orig_map, "\n", "\r\n"))
+</value>
+    </trigger>
+    <trigger name="display_magic_map" type="GMCP" priority="1">
+      <pattern>Room.Info</pattern>
+      <value>// Known issues: It's too big! But there appears to be no way to reduce font below 10, which is how the issue is solved on mudlet. On web client, the map scrolls based on character location, which is how I would like to solve the issue. Related to this is the flashing that currently occurs - limiting amount of map shown would likely solve this as well. On my to-do list! - Kelrhys
+#window "Magic Map"
+:"Magic Map":#CLR
+
+// black, blue, green, cyan, red, magenta, brown, gray, yellow, white
+$map_color = "white"
+
+#if %gmcp.room.info.x {
+  // Takes a map string, splits it into lines, then adds current location as a red X into appropriate map location as specified by gmcp.room.info.x and .y
+  $x = %gmcp.room.info.x
+  $y = %gmcp.room.info.y
+
+  // Replace newlines with a "magic number" (which hopefully is not used in any maps, or it will break) so they are not stripped by json function, which is required to remove escape chars
+  $nlmagic = "8888"
+  $newmap = @orig_map
+  $newmap = %replace($newmap, "\n", $nlmagic)
+  $newmap = %json($newmap)
+  
+  // At this point escape characters are removed, but newline "magic number remains" so we can use it to determine end of each line. Can't call a function to split into strings because if we store lines in a stringlist literal quotation mark characters are not handled properly in all cases
+  // Loop through each line of map and display, adding Red X for current location at appropriate location 
+  $linenum = 0
+  #while ($newmap) {
+    $linenum = $linenum + 1
+    $index = %pos($nlmagic, $newmap)
+    $line = ""
+    #if ($index) {
+      // Construct line to display, without newline delimiter
+      $line = %left($newmap, $index-1)
+      
+      // Add Red X for current location
+      #if ($linenum == $y+1) {
+        $left = %ansi($map_color)%left($line, $x)%ansi(bold,red)X%ansi($map_color)
+        $right = %right($line, $x+1)    
+        $line = $left$right
+      }
+      #window "Magic Map" %ansi($map_color)$line
+
+      // Slice out current line to continue processing remainder of map
+      $newmap = %right($newmap, $index+%len($nlmagic)-1)
+    } 
+    {
+      #window "Magic Map" %ansi($map_color)$newmap
+      $newmap = ""
+    }
+  }
+  // Clear x coordinate or cannot detect when no map available
+  %gmcp.room.info.x = 0
+}
+{
+  #window "Magic Map" No map info available
+}
+
+// Update current location on cmud map
+#teleport %gmcp.room.info.id</value>
+    </trigger>
+  </class>
+</cmud>
