@@ -1,0 +1,12 @@
+// Simple String List to Gag any unwanted text in game
+
+<class name="Gags" id="17">
+  <var name="GagList" type="StringList" id="18">
+    <value>&lt;Newbie&gt; Your newbie pin buzzes</value>
+    <json>["&lt;Newbie&gt; Your newbie pin buzzes"]</json>
+  </var>
+  <trigger priority="190" id="19">
+    <pattern>@GagList</pattern>
+    <value>#GAG</value>
+  </trigger>
+</class>
