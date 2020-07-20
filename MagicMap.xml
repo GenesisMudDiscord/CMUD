@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="ISO-8859-1" ?>
 <cmud>
   <class name="Magic Map">
+    <notes>To reduce flashing, a fixed width and column are used to fit the window size. These values may need to be changed depending on the window size. If you see a lot of flashing or your location is not shown as a Red X, this is likely the issue! Default values are set in display_magic_map trigger: $maxwidth = 55, $maxheight = 35</notes>
     <trigger name="get_telnet_map" type="Telnet" param="201" priority="24310" regex="true">
       <pattern>\"map\": (.*)</pattern>
       <value>// FYI: Use script debugger to view entire telnet 201 payload, regex narrows it down to just the map data
@@ -16,9 +17,14 @@ orig_map = %string(%leftback(%1,2))
     </trigger>
     <trigger name="display_magic_map" type="GMCP" priority="1">
       <pattern>Room.Info</pattern>
-      <value>// Known issues: It's too big! But there appears to be no way to reduce font below 10, which is how the issue is solved on mudlet. On web client, the map scrolls based on character location, which is how I would like to solve the issue. Related to this is the flashing that currently occurs - limiting amount of map shown would likely solve this as well. On my to-do list! - Kelrhys
+      <value><![CDATA[// Known issues: < > characters aren't displayed. Example: <hit pipe> instructions at boat to Bazaar
+// TBD: Create fixed size and font window so maxwidth and height always look right.
 #window "Magic Map"
 :"Magic Map":#CLR
+
+// These column and row settings may need to be changed to fit your magic map window size. If you see a lot of flashing or your location is not shown as a Red X, this is likely the issue!
+$maxwidth = 55
+$maxheight = 35
 
 // black, blue, green, cyan, red, magenta, brown, gray, yellow, white
 $map_color = "white"
@@ -27,49 +33,93 @@ $map_color = "white"
   // Takes a map string, splits it into lines, then adds current location as a red X into appropriate map location as specified by gmcp.room.info.x and .y
   $x = %gmcp.room.info.x
   $y = %gmcp.room.info.y
-
   // Replace newlines with a "magic number" (which hopefully is not used in any maps, or it will break) so they are not stripped by json function, which is required to remove escape chars
   $nlmagic = "8888"
   $newmap = @orig_map
-  $newmap = %replace($newmap, "\n", $nlmagic)
-  $newmap = %json($newmap)
   
+  // Replace < with html-encoded &lt; - this isn't working yet, need to account for extra characters.
+  //$newmap = %replace( $newmap, "<", "&lt;")
+  $newmap = %replace( $newmap, "\n", $nlmagic)
+  $newmap = %json( $newmap)
   // At this point escape characters are removed, but newline "magic number remains" so we can use it to determine end of each line. Can't call a function to split into strings because if we store lines in a stringlist literal quotation mark characters are not handled properly in all cases
-  // Loop through each line of map and display, adding Red X for current location at appropriate location 
+  // Loop through each line of map and display, substituting Red X at current location at x'th location on y'th line to show current position. Offset is used to display adjacent area of map to the right or below current location so exit directions are always visible.
+  $offset = 5
   $linenum = 0
-  #while ($newmap) {
-    $linenum = $linenum + 1
-    $index = %pos($nlmagic, $newmap)
+  $firstline = 0
+  $lastline = $maxheight+$offset
+
+  // If current row location is below max display height, adjust first line to show so it will be visible 
+  #if ($y >= $maxheight) {
+    $firstline = $y-$maxheight+$offset
+    $lastline = $maxheight+$firstline
+  }
+  #while ($newmap && ($linenum <= $lastline)) {
+    //#echo y: $y line: $linenum lastline: $lastline
+    $index = %pos( $nlmagic, $newmap)
     $line = ""
     #if ($index) {
       // Construct line to display, without newline delimiter
-      $line = %left($newmap, $index-1)
-      
-      // Add Red X for current location
-      #if ($linenum == $y+1) {
-        $left = %ansi($map_color)%left($line, $x)%ansi(bold,red)X%ansi($map_color)
-        $right = %right($line, $x+1)    
-        $line = $left$right
-      }
-      #window "Magic Map" %ansi($map_color)$line
-
+      $line = %left( $newmap, $index-1)
       // Slice out current line to continue processing remainder of map
-      $newmap = %right($newmap, $index+%len($nlmagic)-1)
-    } 
-    {
-      #window "Magic Map" %ansi($map_color)$newmap
+      $newmap = %right( $newmap, $index+%len( $nlmagic)-1)
+    } {
+      // This is the last line in map
+      $line = $newmap
       $newmap = ""
     }
-  }
+    // Only display current line if we have reached the starting line number
+    #if ($linenum >= $firstline) {
+      // If current column location is greater than max display width, trim left side of line 
+      $ltrim = 0
+      #if ($x > $maxwidth) {
+        $ltrim = $x-$maxwidth
+        $line = %right( $line, $ltrim)
+      }
+ 
+      // Truncate line to maximum width
+      $line = %left( $line, $maxwidth+$offset)
+ 
+      // Add Red X for current location
+      #if ($linenum == $y) {
+        // Update x location for any trimming done above
+        $left = %left( $line, $x-$ltrim)%ansi( bold, red)X%ansi( $map_color)
+        $right = %right( $line, $x-$ltrim+1)    
+        $line = %concat( $left, $right)
+      }
+      
+      // Display the line
+      #window "Magic Map" %ansi( $map_color)$line
+    }
+    $linenum = $linenum + 1
+  } // end while loop
+  
   // Clear x coordinate or cannot detect when no map available
   %gmcp.room.info.x = 0
 }
 {
   #window "Magic Map" No map info available
+}]]></value>
+    </trigger>
+    <class name="tests" enabled="false">
+      <alias name="checksize">
+        <value>:"Magic Map":#say Width of this window: %pref(WindowWidth) height: %pref(WindowHeight) 
+
+// 60 columns width @ font size 10 = 434; 40 rows height = 161
+// Font size does not appear to be available via %pref function</value>
+      </alias>
+      <alias name="testlt">
+        <value><![CDATA[$list = "~~    >>>>>>>>>>>>>>>>>>    INN      <<<<<<<<<<<<<<<<<<<<<|         \                      (<hit pipe> to summon transport)"
+$color = "bold,white"
+
+#forall $list {
+  $line = %replace( %i, "<", "&lt;") // adds 3 chars to line!! affects display
+  $line = %json( $line)
+  #WINDOW "Communication" %ansi($color)$line
 }
 
-// Update current location on cmud map
-#teleport %gmcp.room.info.id</value>
-    </trigger>
+]]></value>
+      </alias>
+    </class>
+    <var name="orig_map" type="Literal">"     \n                               \n    THE TOWER OF            .e$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$e.   \n    HIGH SORCERY          .$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$c \n                        .$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$.\n    Sixth level        z$$$$$$$$$$$$$$,=========,$$$$$$$$$$$$$$$b\n                     ,`===========,$$$|         |$$$$$$$$$$$$$$$@\n                    d| Sleeping   |$$$|Elemental|$$$$$$$$$$$$$$$$\n                   d$|    o       |$$$|    o    |$$$$$$$$$$$$$$$$\n                  '$$| Quarters   |$$$|Training |$$$$$$$$$$$$$r =\n                  d$$'==|   |====='$$$|         |$$$$$$$$$$ \n                  $$$$$$|   |$$$$$$$$$`===   ==='$$$$$$$$     ===\n                  $$$,===   ===`$$$$$$$$$|   |$$$$$$$$$$$# \n                  $$$|         |$====='         '=======$#   ===\n                  $$$|Meditation                         ^ \n                  $$$|    o                o                ===      \n                  $$$|  Room                             ^  \n                  $$$|         |$====='         '=======$#   ===\n                  $$$`===   ==='$$$$$$$$$|   |$$$$$$$$$$$# \n                  $$$$$$|   |$$$$$$$$$,===   ===,$$$$$$$$     ===\n                  $$$,==|   |==,$$$$$$|         |$$$$$$$$$$    \n                  q$$|         |$$$$$$| Arcane  |$$$$$$$$$$$$$r =          \n                  '$$|    o    |$$$$$$|    o    |$$$$$$$$$$$$$$$$        \n                   q$| Storage |$$$$$$|Training |$$$$$$$$$$$$$$$$      \n                    q|         |$$$$$$|         |$$$$$$$$$$$$$$$$          \n                     d========='$$$$$$'========='$$$$$$$$$$$$$$$@            \n                      `z$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$b\n                        .$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$.\n                          .$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$c\n\n"</var>
   </class>
 </cmud>
