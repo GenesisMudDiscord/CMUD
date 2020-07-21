@@ -1,0 +1,45 @@
+<class name="Herbs" id="1402">
+  <trigger priority="13960" id="1396">
+    <pattern>Your senses come alive as you enter a new environment and detect the distinctive scent</pattern>
+    <value>#COLOR "hi,orange"</value>
+  </trigger>
+  <alias name="shs" id="1397">
+    <value>search here for skunk berries
+</value>
+  </alias>
+  <alias name="shc" id="1399">
+    <value>search here for chicory
+</value>
+  </alias>
+  <trigger priority="14030" id="1403">
+    <pattern>You find a handful of small purple berries</pattern>
+    <value>herbsfound = @herbsfound + 1
+totalherbs = @totalherbs + 1
+#if (@herbsfound &lt; 3) {
+    search here for skunk berries
+}
+{
+    totalherbs = 0
+    herbsfound = 0
+}</value>
+  </trigger>
+  <trigger priority="14090" id="1409">
+    <pattern>You find a sharp short leaf!</pattern>
+    <value>herbsfound = @herbsfound + 1
+totalherbs = @totalherbs + 1
+#if (@herbsfound &lt; 3) {
+    search here for chicory
+}
+{
+    totalherbs = 0
+    herbsfound = 0
+}</value>
+  </trigger>
+  <var name="herbsfound" id="1467">0</var>
+  <var name="totalherbs" id="1468">0</var>
+  <trigger priority="14700" id="1470">
+    <pattern>You search everywhere, but find no</pattern>
+    <value>totalherbs = 0
+herbsfound = 0</value>
+  </trigger>
+</class>
